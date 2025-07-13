@@ -28,3 +28,5 @@ EXPOSE 8000
 
 # Use entrypoint script with shell
 CMD ["sh", "./entrypoint.sh"] 
+# Entrypoint for Gunicorn
+CMD ["gunicorn", "rag_tutor.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"] 

@@ -49,20 +49,30 @@ class TextbookViewSet(viewsets.ModelViewSet):
     serializer_class = TextbookContentSerializer
     
     def get_queryset(self):
-        """Filter textbooks by user if authenticated, and only show processed books with chunks"""
-        logger.info(f"TextbookViewSet.get_queryset called - user: {self.request.user}, authenticated: {self.request.user.is_authenticated if self.request.user else 'No user'}")
-        qs = TextbookContent.objects.filter(processing_status='completed')
-        # Only include books with at least one chunk
-        qs = qs.filter(chunks__isnull=False).distinct()
-        if self.request.user and hasattr(self.request.user, 'is_authenticated') and self.request.user.is_authenticated:
-            return qs.filter(uploaded_by=self.request.user)
-        # Allow anonymous users to see all processed textbooks for demo purposes
-        return qs
+        return TextbookContent.objects.all().order_by('-uploaded_at')
     
     def list(self, request, *args, **kwargs):
         """Override list method to add debugging"""
         logger.info(f"TextbookViewSet.list called - user: {request.user}, authenticated: {request.user.is_authenticated if request.user else 'No user'}")
         return super().list(request, *args, **kwargs)
+    
+    @action(detail=False, methods=['get'])
+    def all_materials(self, request):
+        """Get all textbooks including pending and processing ones for the materials list"""
+        logger.info(f"TextbookViewSet.all_materials called - user: {request.user}")
+        
+        # Get all textbooks regardless of status
+        qs = TextbookContent.objects.all().order_by('-uploaded_at')
+        
+        # For authenticated users, filter by user
+        if request.user and hasattr(request.user, 'is_authenticated') and request.user.is_authenticated:
+            qs = qs.filter(uploaded_by=request.user)
+        
+        serializer = self.get_serializer(qs, many=True)
+        return Response({
+            'results': serializer.data,
+            'count': qs.count()
+        })
     
     def destroy(self, request, *args, **kwargs):
         """Delete a textbook and its associated content"""
@@ -842,13 +852,57 @@ class SessionStatsView(APIView):
     
     def get(self, request):
         try:
-            # For demo purposes, return sample stats
-            # In production, you would calculate these from actual session data
+            # Calculate real stats from the database
+            from django.db.models import Avg, Count
+            from datetime import datetime, timedelta
+            
+            # Get session start time (last 24 hours for demo purposes)
+            # In production, you might want to track actual session start
+            session_start = datetime.now() - timedelta(hours=24)
+            
+            # Get queries from the session period
+            session_queries = QueryLog.objects.filter(
+                created_at__gte=session_start
+            )
+            
+            # If no session queries, try today's queries
+            if not session_queries.exists():
+                today = datetime.now().date()
+                session_queries = QueryLog.objects.filter(
+                    created_at__date=today
+                )
+            
+            # If still no queries, try all queries (for demo purposes)
+            if not session_queries.exists():
+                session_queries = QueryLog.objects.all()
+            
+            # Calculate stats
+            questions_asked = session_queries.count()
+            
+            # Average response time
+            avg_response_time = session_queries.aggregate(
+                avg_time=Avg('response_time_ms')
+            )['avg_time'] or 0
+            
+            # Average rating (from queries with ratings)
+            rated_queries = session_queries.filter(rating__isnull=False)
+            avg_rating = rated_queries.aggregate(
+                avg_rating=Avg('rating')
+            )['avg_rating'] or 0
+            
+            # Sources used (queries with retrieved chunks)
+            sources_used = session_queries.filter(
+                retrieved_chunks__isnull=False
+            ).distinct().count()
+            
+            # Debug logging
+            logger.info(f"Session stats calculated: questions={questions_asked}, avg_time={avg_response_time}, avg_rating={avg_rating}, sources={sources_used}")
+            
             stats = {
-                'questions_asked': 0,
-                'avg_response_time': 1200,
-                'avg_rating': 4.2,
-                'sources_used': 0
+                'total_questions': questions_asked,
+                'avg_response_time': int(avg_response_time),
+                'avg_rating': round(avg_rating, 1),
+                'total_sources': sources_used
             }
             
             return Response(stats)

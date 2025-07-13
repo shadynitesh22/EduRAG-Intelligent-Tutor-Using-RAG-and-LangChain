@@ -128,7 +128,7 @@ class GeminiClient:
 
     def generate_chat_response(self, 
                              prompt: str, 
-                             max_tokens: int = 500,
+                             max_tokens: int = 16384,
                              temperature: float = 0.7,
                              system_message: Optional[str] = None) -> str:
         """Generate chat response using Gemini API"""

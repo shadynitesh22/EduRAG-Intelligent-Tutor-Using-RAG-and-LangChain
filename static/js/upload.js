@@ -1,12 +1,58 @@
 // Upload JavaScript for EduRAG Platform
 
+// Global variables
+let uploadedMaterials = [];
+
 // Upload form handling
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Upload.js initializing...');
+    
     const uploadForm = document.getElementById('uploadForm');
     if (uploadForm) {
         uploadForm.addEventListener('submit', handleUpload);
+        console.log('✅ Upload form listener attached');
     }
+    
+    // Load initial materials
+    loadUploadedMaterials();
+    
+    // Start polling for processing status
+    startProcessingPolling();
+    
+    console.log('✅ Upload.js initialized');
 });
+
+// Utility function to format dates
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// File validation function
+function validateFile(file) {
+    const allowedTypes = ['text/plain', 'application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const maxSize = 200 * 1024 * 1024; // 200MB
+    
+    if (!file) {
+        return { isValid: false, message: 'No file selected' };
+    }
+    
+    if (!allowedTypes.includes(file.type)) {
+        return { isValid: false, message: 'Invalid file type. Please upload PDF, DOCX, or TXT files only.' };
+    }
+    
+    if (file.size > maxSize) {
+        return { isValid: false, message: 'File size too large. Maximum size is 200MB.' };
+    }
+    
+    return { isValid: true, message: 'File is valid' };
+}
 
 async function handleUpload(e) {
     e.preventDefault();
@@ -26,7 +72,7 @@ async function handleUpload(e) {
     // Validate file
     const validation = validateFile(file);
     if (!validation.isValid) {
-        showAlert('Please select a valid file.', 'error');
+        showAlert(validation.message, 'error');
         return;
     }
     
@@ -49,11 +95,19 @@ async function handleUpload(e) {
             e.target.reset();
             document.getElementById('fileValidation').style.display = 'none';
             
-            // Reload uploaded materials
-            loadUploadedMaterials();
+            // Add the new material to the list immediately with processing status
+            addMaterialToList(result);
+            
+            // Start polling for this specific material
+            pollMaterialStatus(result.id);
             
             // Enable chat if this is the first upload
             enableChat();
+            
+            // Refresh the textbook dropdown in chat
+            if (typeof refreshTextbookDropdown === 'function') {
+                refreshTextbookDropdown();
+            }
             
         } else {
             hideLoading();
@@ -67,26 +121,166 @@ async function handleUpload(e) {
     }
 }
 
+// Add material to list immediately after upload
+function addMaterialToList(material) {
+    const container = document.getElementById('uploadedMaterialsList');
+    if (!container) return;
+    
+    // Remove empty state if it exists
+    const emptyState = container.querySelector('.empty-state');
+    if (emptyState) {
+        emptyState.remove();
+    }
+    
+    const statusClass = getStatusClass(material.processing_status);
+    const statusIcon = getStatusIcon(material.processing_status);
+    const fileIcon = getFileIcon(material.file);
+    
+    const materialHtml = `
+        <div class="material-item" data-id="${material.id}" data-status="${material.processing_status}">
+            <div class="material-info">
+                <div class="material-icon">${fileIcon}</div>
+                <div class="material-details">
+                    <div class="material-title">${material.title}</div>
+                    <div class="material-meta">
+                        <span>${material.subject.name}</span>
+                        <span>Grade ${material.grade.level}</span>
+                        <span>${formatDate(material.uploaded_at)}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="material-status">
+                <span class="status-badge ${statusClass}">
+                    ${statusIcon} ${material.processing_status}
+                </span>
+            </div>
+            <div class="material-actions">
+                <button class="material-action-btn" onclick="viewMaterial('${material.id}')">View</button>
+                <button class="material-action-btn delete" onclick="deleteMaterial('${material.id}')">Delete</button>
+            </div>
+        </div>
+    `;
+    
+    // Insert at the beginning of the list
+    container.insertAdjacentHTML('afterbegin', materialHtml);
+}
+
+// Poll material status until processing is complete
+async function pollMaterialStatus(materialId) {
+    const maxAttempts = 60; // 5 minutes with 5-second intervals
+    let attempts = 0;
+    
+    const pollInterval = setInterval(async () => {
+        attempts++;
+        
+        try {
+            const response = await fetch(`/api/textbooks/${materialId}/`);
+            if (response.ok) {
+                const material = await response.json();
+                
+                // Update the material item in the list
+                updateMaterialStatus(materialId, material.processing_status);
+                
+                // If processing is complete or failed, stop polling
+                if (material.processing_status === 'completed' || material.processing_status === 'failed') {
+                    clearInterval(pollInterval);
+                    
+                    if (material.processing_status === 'completed') {
+                        showAlert(`Processing completed for: ${material.title}`, 'success');
+                        // Refresh textbook dropdown when processing completes
+                        if (typeof refreshTextbookDropdown === 'function') {
+                            refreshTextbookDropdown();
+                        }
+                        // Reload materials list to show updated status
+                        loadUploadedMaterials();
+                    } else if (material.processing_status === 'failed') {
+                        showAlert(`Processing failed for: ${material.title}`, 'error');
+                        // Reload materials list to show updated status
+                        loadUploadedMaterials();
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Polling error:', error);
+        }
+        
+        // Stop polling after max attempts
+        if (attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            console.log('Polling timeout for material:', materialId);
+        }
+    }, 5000); // Poll every 5 seconds
+}
+
+// Update material status in the UI
+function updateMaterialStatus(materialId, status) {
+    const materialItem = document.querySelector(`[data-id="${materialId}"]`);
+    if (materialItem) {
+        const statusBadge = materialItem.querySelector('.status-badge');
+        if (statusBadge) {
+            const statusClass = getStatusClass(status);
+            const statusIcon = getStatusIcon(status);
+            
+            statusBadge.className = `status-badge ${statusClass}`;
+            statusBadge.innerHTML = `${statusIcon} ${status}`;
+        }
+        
+        // Update data attribute
+        materialItem.setAttribute('data-status', status);
+    }
+}
+
+// Start polling for all processing materials
+function startProcessingPolling() {
+    const processingMaterials = document.querySelectorAll('[data-status="processing"], [data-status="pending"]');
+    processingMaterials.forEach(material => {
+        const materialId = material.getAttribute('data-id');
+        if (materialId) {
+            pollMaterialStatus(materialId);
+        }
+    });
+}
+
 // Load uploaded materials
 async function loadUploadedMaterials() {
     try {
+        console.log('📚 Loading uploaded materials...');
         const response = await fetch('/api/textbooks/');
         const materials = await response.json();
         
+        console.log('📚 API response:', materials);
+        
         uploadedMaterials = materials.results || materials;
+        console.log('📚 Processed materials:', uploadedMaterials);
+        
         displayUploadedMaterials(uploadedMaterials);
         
+        // Start polling for processing materials
+        startProcessingPolling();
+        
+        // Refresh textbook dropdown
+        if (typeof refreshTextbookDropdown === 'function') {
+            refreshTextbookDropdown();
+        }
+        
     } catch (error) {
-        console.error('Error loading materials:', error);
+        console.error('❌ Error loading materials:', error);
         displayUploadedMaterials([]);
     }
 }
 
 function displayUploadedMaterials(materials) {
+    console.log('📚 Displaying materials:', materials);
     const container = document.getElementById('uploadedMaterialsList');
-    if (!container) return;
+    if (!container) {
+        console.error('❌ Container not found: uploadedMaterialsList');
+        return;
+    }
+    
+    console.log('📚 Container found, materials count:', materials.length);
     
     if (materials.length === 0) {
+        console.log('📚 No materials, showing empty state');
         container.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">📚</div>
@@ -104,7 +298,7 @@ function displayUploadedMaterials(materials) {
         const fileIcon = getFileIcon(material.file);
         
         html += `
-            <div class="material-item" data-id="${material.id}">
+            <div class="material-item" data-id="${material.id}" data-status="${material.processing_status}">
                 <div class="material-info">
                     <div class="material-icon">${fileIcon}</div>
                     <div class="material-details">
@@ -132,6 +326,7 @@ function displayUploadedMaterials(materials) {
     container.innerHTML = html;
 }
 
+// Utility functions
 function getStatusClass(status) {
     switch (status) {
         case 'pending': return 'pending';
@@ -153,66 +348,71 @@ function getStatusIcon(status) {
 }
 
 function getFileIcon(filename) {
+    if (!filename) return '📄';
+    
     const extension = filename.split('.').pop().toLowerCase();
     switch (extension) {
-        case 'pdf': return '📄';
-        case 'docx': return '📝';
+        case 'pdf': return '📕';
+        case 'docx': return '📘';
         case 'txt': return '📄';
-        default: return '📁';
+        default: return '📄';
     }
 }
 
-// Material actions
 function viewMaterial(materialId) {
-    const material = uploadedMaterials.find(m => m.id === materialId);
-    if (material) {
-        showAlert(`Viewing: ${material.title}\nSubject: ${material.subject.name}\nGrade: ${material.grade.level}\nStatus: ${material.processing_status}`, 'info');
+    console.log('Viewing material:', materialId);
+    // TODO: Implement material viewing functionality
+}
+
+async function deleteMaterial(materialId) {
+    if (!confirm('Are you sure you want to delete this material?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/textbooks/${materialId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        });
+        
+        if (response.ok) {
+            showAlert('Material deleted successfully!', 'success');
+            loadUploadedMaterials(); // Reload the list
+        } else {
+            showAlert('Failed to delete material.', 'error');
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        showAlert('Failed to delete material.', 'error');
     }
 }
 
-function deleteMaterial(materialId) {
-    showConfirm('Are you sure you want to delete this material? This action cannot be undone.', async () => {
-        try {
-            const response = await fetch(`/api/textbooks/${materialId}/`, {
-                method: 'DELETE'
-            });
-            
-            if (response.ok) {
-                showAlert('Material deleted successfully!', 'success');
-                loadUploadedMaterials();
-            } else {
-                showAlert('Failed to delete material. Please try again.', 'error');
-            }
-        } catch (error) {
-            console.error('Delete error:', error);
-            showAlert('Failed to delete material. Please try again.', 'error');
-        }
-    });
-}
-
-// Enable chat when materials are available
 function enableChat() {
     const questionInput = document.getElementById('questionInput');
     const askBtn = document.getElementById('askBtn');
     const uploadPrompt = document.getElementById('uploadPrompt');
     
-    if (questionInput && askBtn) {
-        questionInput.disabled = false;
-        askBtn.disabled = false;
-        
-        if (uploadPrompt) {
-            uploadPrompt.style.display = 'none';
-        }
+    if (questionInput) questionInput.disabled = false;
+    if (askBtn) askBtn.disabled = false;
+    if (uploadPrompt) uploadPrompt.style.display = 'none';
+}
+
+function openManageModal() {
+    const modal = document.getElementById('manageModal');
+    if (modal) {
+        modal.style.display = 'block';
+        modal.classList.add('show');
     }
 }
 
-// Manage subjects and grades
-function openManageModal() {
-    openModal('manageModal');
-}
-
 function closeManageModal() {
-    closeModal('manageModal');
+    const modal = document.getElementById('manageModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
 }
 
 async function addSubject() {
@@ -237,7 +437,6 @@ async function addSubject() {
         if (response.ok) {
             showAlert('Subject added successfully!', 'success');
             nameInput.value = '';
-            // Reload page to update dropdowns
             location.reload();
         } else {
             const result = await response.json();
@@ -271,7 +470,6 @@ async function addGrade() {
         if (response.ok) {
             showAlert('Grade added successfully!', 'success');
             levelInput.value = '';
-            // Reload page to update dropdowns
             location.reload();
         } else {
             const result = await response.json();
@@ -283,33 +481,28 @@ async function addGrade() {
     }
 }
 
-// Utility function to get CSRF token
 function getCSRFToken() {
-    const token = document.querySelector('meta[name="csrf-token"]');
-    return token ? token.getAttribute('content') : '';
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
 }
 
-// Auto-refresh materials status
-let materialsRefreshInterval;
+// showAlert function is defined in base.js
+
+// showLoading and hideLoading functions are defined in base.js
 
 function startMaterialsRefresh() {
-    materialsRefreshInterval = setInterval(() => {
-        loadUploadedMaterials();
-    }, 10000); // Refresh every 10 seconds
+    // Refresh materials every 30 seconds
+    setInterval(loadUploadedMaterials, 30000);
 }
 
 function stopMaterialsRefresh() {
-    if (materialsRefreshInterval) {
-        clearInterval(materialsRefreshInterval);
-    }
+    // Stop refreshing materials
+    clearInterval(materialsRefreshInterval);
 }
 
-// Start auto-refresh when page loads
-document.addEventListener('DOMContentLoaded', function() {
-    startMaterialsRefresh();
-});
-
-// Stop auto-refresh when page unloads
-window.addEventListener('beforeunload', function() {
-    stopMaterialsRefresh();
-}); 
+// Make functions globally available
+window.viewMaterial = viewMaterial;
+window.deleteMaterial = deleteMaterial;
+window.openManageModal = openManageModal;
+window.closeManageModal = closeManageModal;
+window.addSubject = addSubject;
+window.addGrade = addGrade; 

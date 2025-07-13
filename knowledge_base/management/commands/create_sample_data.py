@@ -277,3 +277,4 @@ class Command(BaseCommand):
             self.style.SUCCESS('Successfully created sample data!')
         )
         self.stdout.write('You can now test the chat functionality with questions about mathematics and biology.') 
+ 

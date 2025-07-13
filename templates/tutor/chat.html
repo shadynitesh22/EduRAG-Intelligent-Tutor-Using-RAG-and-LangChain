@@ -57,21 +57,12 @@
 <div class="uploaded-materials-section mb-lg">
     <h3>Your Uploaded Materials</h3>
     <div id="uploadedMaterialsList" class="materials-container">
-        {% if uploaded_materials %}
-            {% for material in uploaded_materials %}
-                <div class="material-item mb-md">
-                    <span class="badge badge-title">{{ material.title }}</span>
-                    <span class="badge badge-subject">{{ material.subject.name }}</span>
-                    <span class="badge badge-grade">Grade {{ material.grade.level }}</span>
-                </div>
-            {% endfor %}
-        {% else %}
+        <!-- This will be populated by JavaScript -->
         <div class="empty-state">
             <div class="empty-state-icon">📚</div>
             <div class="empty-state-text">No materials uploaded yet</div>
             <div class="empty-state-hint">Upload your first study material to get started</div>
         </div>
-        {% endif %}
     </div>
 </div>
 
@@ -108,16 +99,12 @@
             <div class="chat-filters">
                 <select id="textbookFilter" class="form-control">
                     <option value="">All Textbooks</option>
-                    {% for material in uploaded_materials %}
-                    <option value="{{ material.id }}">{{ material.title }} ({{ material.subject.name }}, Grade {{ material.grade.level }})</option>
-                    {% endfor %}
+                    <!-- This will be populated by JavaScript -->
                 </select>
+                <button type="button" class="btn btn-secondary btn-small" onclick="refreshTextbookDropdown()" style="margin-left: 10px;">
+                    🔄 Refresh
+                </button>
             </div>
-        </div>
-        <!-- Chat History Section -->
-        <div class="chat-history-section" id="chatHistorySection" style="margin-top:2rem;">
-            <h4>Chat History</h4>
-            <div id="chatHistoryList"></div>
         </div>
     </div>
 
@@ -167,19 +154,19 @@
             <div class="sidebar-section-content">
                 <div class="metrics-grid">
                     <div class="metric-card">
-                        <div class="metric-value" id="questionsAsked">{{ session_stats.questions_asked }}</div>
+                        <div class="metric-value" id="questionsAsked">0</div>
                         <div class="metric-label">Questions</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value" id="avgResponseTime">{{ session_stats.avg_response_time }}ms</div>
+                        <div class="metric-value" id="avgResponseTime">0ms</div>
                         <div class="metric-label">Avg Response</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value" id="avgRating">{{ session_stats.avg_rating|floatformat:1 }}</div>
+                        <div class="metric-value" id="avgRating">0.0</div>
                         <div class="metric-label">Avg Rating</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value" id="sourcesUsed">{{ session_stats.sources_used }}</div>
+                        <div class="metric-value" id="sourcesUsed">0</div>
                         <div class="metric-label">Sources Used</div>
                     </div>
                 </div>
@@ -222,11 +209,12 @@
 <div id="feedbackModal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
-            <h3 class="modal-title">Rate This Response</h3>
+            <h3>Rate This Response</h3>
             <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
         </div>
         <div class="modal-body">
             <div class="rating-section">
+                <label>How helpful was this response?</label>
                 <div class="rating-stars">
                     <span class="star" data-rating="1">⭐</span>
                     <span class="star" data-rating="2">⭐</span>
@@ -234,15 +222,41 @@
                     <span class="star" data-rating="4">⭐</span>
                     <span class="star" data-rating="5">⭐</span>
                 </div>
-                <div class="rating-label" id="ratingLabel">Select a rating</div>
+                <div id="ratingLabel">Select a rating</div>
             </div>
-            <div class="input-group">
-                <label class="form-label">Additional Comments (Optional)</label>
-                <textarea id="feedbackComment" class="form-control" placeholder="Share your thoughts about this response..." rows="3"></textarea>
+            <div class="feedback-section">
+                <label for="feedbackComment">Additional Comments (Optional)</label>
+                <textarea id="feedbackComment" class="form-control" rows="3" placeholder="Share your thoughts about this response..."></textarea>
             </div>
-            <div class="modal-actions">
-                <button class="btn btn-primary" onclick="submitFeedback()">Submit Feedback</button>
-                <button class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="submitFeedback()">Submit Feedback</button>
+            <button class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Subjects & Grades Modal -->
+<div id="manageModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Manage Subjects & Grades</h3>
+            <button class="modal-close" onclick="closeManageModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="manage-section">
+                <h4>Add New Subject</h4>
+                <div class="input-group">
+                    <input type="text" id="newSubjectName" class="form-control" placeholder="Enter subject name">
+                    <button class="btn btn-primary" onclick="addSubject()">Add Subject</button>
+                </div>
+            </div>
+            <div class="manage-section">
+                <h4>Add New Grade</h4>
+                <div class="input-group">
+                    <input type="number" id="newGradeLevel" class="form-control" placeholder="Enter grade level (1-12)" min="1" max="12">
+                    <button class="btn btn-primary" onclick="addGrade()">Add Grade</button>
+                </div>
             </div>
         </div>
     </div>
@@ -250,9 +264,9 @@
 
 <!-- Chat History Modal -->
 <div id="chatHistoryModal" class="modal">
-    <div class="modal-content modal-large">
+    <div class="modal-content">
         <div class="modal-header">
-            <h3 class="modal-title">Chat History</h3>
+            <h3>Chat History</h3>
             <button class="modal-close" onclick="closeChatHistoryModal()">&times;</button>
         </div>
         <div class="modal-body">
@@ -263,296 +277,300 @@
                     <option value="week">This Week</option>
                     <option value="month">This Month</option>
                 </select>
-                <button class="btn btn-secondary btn-small" onclick="exportChatHistory()">Export History</button>
             </div>
-            <div id="chatHistoryContent" class="chat-history-content">
-                <!-- Chat history will be loaded here -->
+            <div id="chatHistoryContent">
+                <!-- History content will be loaded here -->
             </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="exportChatHistory()">Export History</button>
+            <button class="btn btn-secondary" onclick="closeChatHistoryModal()">Close</button>
         </div>
     </div>
 </div>
 
-<!-- Manage Subjects & Grades Modal -->
-<div id="manageModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3 class="modal-title">Manage Subjects & Grades</h3>
-            <button class="modal-close" onclick="closeManageModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-            <div class="input-group">
-                <label class="form-label">Add New Subject</label>
-                <div class="input-group-row">
-                    <input type="text" id="newSubjectName" class="form-control" placeholder="Subject name">
-                    <button type="button" class="btn btn-primary" onclick="addSubject()">Add Subject</button>
-                </div>
-            </div>
-            <div class="input-group">
-                <label class="form-label">Add New Grade</label>
-                <div class="input-group-row">
-                    <input type="number" id="newGradeLevel" class="form-control" placeholder="Grade level" min="1" max="12">
-                    <button type="button" class="btn btn-primary" onclick="addGrade()">Add Grade</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script src="{% static 'js/e_chat.js' %}"></script>
 <script>
-// Ensure critical functions are always available
-function askQuestion() {
-    console.log('❓ Asking question...');
-    const questionInput = document.getElementById('questionInput');
-    const question = questionInput.value.trim();
+// Initialize the page when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Initializing EduRAG page...');
     
-    if (!question) {
-        if (typeof showAlert === 'function') {
-            showAlert('Please enter a question.', 'error');
-        } else {
-            alert('Please enter a question.');
-        }
-        return;
-    }
+    // Load uploaded materials on page load
+    loadUploadedMaterials();
+    
+    // Load session stats
+    loadSessionStats();
+    
+    console.log('✅ Page initialization complete');
+});
 
-    // Get selected textbook
-    const textbookFilter = document.getElementById('textbookFilter');
-    const selectedTextbookId = textbookFilter ? textbookFilter.value : '';
-    
-    console.log('Question:', question);
-    console.log('Selected textbook ID:', selectedTextbookId);
-    
-    // Show loading
-    if (typeof showLoading === 'function') {
-        showLoading('AI is thinking...');
-    }
-    
-    // Add user message to chat
-    if (typeof addMessage === 'function') {
-        addMessage('user', question);
-    }
-    
-    // Clear input
-    questionInput.value = '';
-    
-    // Make API call
-    fetch('/api/ask/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({
-            question: question,
-            type: 'rag',
-            persona: 'helpful_tutor',
-            textbook_id: selectedTextbookId || ''
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
+// Load uploaded materials from API
+async function loadUploadedMaterials() {
+    try {
+        const response = await fetch('/api/textbooks/');
+        const data = await response.json();
         
-        if (result.answer) {
-            console.log('✅ Question answered successfully');
-            if (typeof addMessage === 'function') {
-                addMessage('ai', result.answer, result.sources, result.response_time_ms);
-            }
-        } else {
-            console.error('❌ Question failed:', result.error);
-            if (typeof addMessage === 'function') {
-                addMessage('system', result.error || 'Sorry, I encountered an error. Please try again.');
-            }
-        }
-    })
-    .catch(error => {
-        console.error('❌ Ask question error:', error);
-        if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
-        if (typeof addMessage === 'function') {
-            addMessage('system', 'Sorry, I encountered an error. Please check your connection and try again.');
-        }
-    });
+        const materials = data.results || data;
+        displayUploadedMaterials(materials);
+        
+        // Start polling for processing materials
+        startProcessingPolling();
+        
+        console.log('📚 Loaded materials:', materials.length);
+    } catch (error) {
+        console.error('❌ Error loading materials:', error);
+        displayUploadedMaterials([]);
+    }
 }
 
-// Add other missing functions
-function addMessage(type, content, sources = null, responseTime = null) {
-    console.log('💬 Adding message:', type, content.substring(0, 50) + '...');
-    const chatMessages = document.getElementById('chatMessages');
-    if (!chatMessages) {
-        console.error('❌ Chat messages container not found!');
+// Display materials in the list
+function displayUploadedMaterials(materials) {
+    const container = document.getElementById('uploadedMaterialsList');
+    if (!container) return;
+    
+    if (materials.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📚</div>
+                <div class="empty-state-text">No materials uploaded yet</div>
+                <div class="empty-state-hint">Upload your first study material to get started</div>
+            </div>
+        `;
         return;
     }
-    
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${type}`;
     
     let html = '';
-    
-    if (type === 'user') {
-        html = `
-            <div class="message-content">
-                <div class="message-text">${escapeHtml(content)}</div>
-                <div class="message-meta">
-                    <span class="message-time">${new Date().toLocaleTimeString()}</span>
-                </div>
-            </div>
-        `;
-    } else if (type === 'ai') {
-        // Format the content with markdown-like formatting
-        const formattedContent = formatAIResponse(content);
+    materials.forEach(material => {
+        const statusClass = getStatusClass(material.processing_status);
+        const statusIcon = getStatusIcon(material.processing_status);
+        const fileIcon = getFileIcon(material.file);
         
-        html = `
-            <div class="message-content">
-                <div class="message-text ai-response">${formattedContent}</div>
-                ${sources && sources.length > 0 ? `
-                    <div class="message-sources">
-                        <div class="sources-header">📚 Sources:</div>
-                        ${sources.map(source => `
-                            <div class="source-item">
-                                <div class="source-title">${source.textbook_title || 'Unknown Source'}</div>
-                                <div class="source-meta">
-                                    ${source.subject || 'Unknown'} | Grade ${source.grade || 'Unknown'} | 
-                                    Similarity: ${(source.similarity_score * 100).toFixed(1)}%
-                                </div>
-                            </div>
-                        `).join('')}
+        html += `
+            <div class="material-item" data-id="${material.id}" data-status="${material.processing_status}">
+                <div class="material-info">
+                    <div class="material-icon">${fileIcon}</div>
+                    <div class="material-details">
+                        <div class="material-title">${material.title}</div>
+                        <div class="material-meta">
+                            <span>${material.subject.name}</span>
+                            <span>Grade ${material.grade.level}</span>
+                            <span>${formatDate(material.uploaded_at)}</span>
+                        </div>
                     </div>
-                ` : ''}
-                <div class="message-meta">
-                    <span class="message-time">${new Date().toLocaleTimeString()}</span>
-                    ${responseTime ? `<span class="response-time">${responseTime}ms</span>` : ''}
-                    <button class="btn btn-small btn-secondary" onclick="showFeedbackModal()">Rate Response</button>
+                </div>
+                <div class="material-status">
+                    <span class="status-badge ${statusClass}">
+                        ${statusIcon} ${material.processing_status}
+                    </span>
+                </div>
+                <div class="material-actions">
+                    <button class="material-action-btn" onclick="viewMaterial('${material.id}')">View</button>
+                    <button class="material-action-btn delete" onclick="deleteMaterial('${material.id}')">Delete</button>
                 </div>
             </div>
         `;
-    } else {
-        html = `
-            <div class="message-content">
-                <div class="message-text">${escapeHtml(content)}</div>
-            </div>
-        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Utility functions
+function getStatusClass(status) {
+    switch (status) {
+        case 'pending': return 'pending';
+        case 'processing': return 'processing';
+        case 'completed': return 'completed';
+        case 'failed': return 'failed';
+        default: return 'pending';
     }
-    
-    messageDiv.innerHTML = html;
-    chatMessages.appendChild(messageDiv);
-    
-    // Scroll to bottom smoothly
-    chatMessages.scrollTo({
-        top: chatMessages.scrollHeight,
-        behavior: 'smooth'
+}
+
+function getStatusIcon(status) {
+    switch (status) {
+        case 'pending': return '⏳';
+        case 'processing': return '🔄';
+        case 'completed': return '✅';
+        case 'failed': return '❌';
+        default: return '⏳';
+    }
+}
+
+function getFileIcon(filename) {
+    const extension = filename.split('.').pop().toLowerCase();
+    switch (extension) {
+        case 'pdf': return '📄';
+        case 'docx': return '📝';
+        case 'txt': return '📄';
+        default: return '📁';
+    }
+}
+
+function formatDate(dateString) {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
     });
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+// Start polling for processing materials
+function startProcessingPolling() {
+    const processingMaterials = document.querySelectorAll('[data-status="processing"], [data-status="pending"]');
+    processingMaterials.forEach(material => {
+        const materialId = material.getAttribute('data-id');
+        if (materialId) {
+            pollMaterialStatus(materialId);
+        }
+    });
 }
 
-// Format AI response with markdown-like formatting
-function formatAIResponse(text) {
-    // Convert **bold** to <strong>bold</strong>
-    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+// Poll material status until processing is complete
+async function pollMaterialStatus(materialId) {
+    const maxAttempts = 60; // 5 minutes with 5-second intervals
+    let attempts = 0;
     
-    // Convert *italic* to <em>italic</em>
-    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
-    
-    // Convert numbered lists
-    text = text.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
-    text = text.replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
-    
-    // Convert bullet lists
-    text = text.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
-    text = text.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
-    
-    // Convert line breaks to <br>
-    text = text.replace(/\n/g, '<br>');
-    
-    // Convert paragraphs
-    text = text.replace(/<br><br>/g, '</p><p>');
-    text = '<p>' + text + '</p>';
-    
-    return text;
+    const pollInterval = setInterval(async () => {
+        attempts++;
+        
+        try {
+            const response = await fetch(`/api/textbooks/${materialId}/`);
+            if (response.ok) {
+                const material = await response.json();
+                
+                // Update the material item in the list
+                updateMaterialStatus(materialId, material.processing_status);
+                
+                // If processing is complete or failed, stop polling
+                if (material.processing_status === 'completed' || material.processing_status === 'failed') {
+                    clearInterval(pollInterval);
+                    
+                    if (material.processing_status === 'completed') {
+                        showAlert(`Processing completed for: ${material.title}`, 'success');
+                    } else if (material.processing_status === 'failed') {
+                        showAlert(`Processing failed for: ${material.title}`, 'error');
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Polling error:', error);
+        }
+        
+        // Stop polling after max attempts
+        if (attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            console.log('Polling timeout for material:', materialId);
+        }
+    }, 5000); // Poll every 5 seconds
 }
 
-// Feedback Modal Functions
-let currentFeedbackData = null;
+// Update material status in the UI
+function updateMaterialStatus(materialId, status) {
+    const materialItem = document.querySelector(`[data-id="${materialId}"]`);
+    if (materialItem) {
+        const statusBadge = materialItem.querySelector('.status-badge');
+        if (statusBadge) {
+            const statusClass = getStatusClass(status);
+            const statusIcon = getStatusIcon(status);
+            
+            statusBadge.className = `status-badge ${statusClass}`;
+            statusBadge.innerHTML = `${statusIcon} ${status}`;
+        }
+        
+        // Update data attribute
+        materialItem.setAttribute('data-status', status);
+    }
+}
 
-function openFeedbackModal(responseText, responseTime) {
-    currentFeedbackData = {
-        responseText: responseText,
-        responseTime: responseTime,
-        timestamp: new Date().toISOString()
-    };
+// Material actions
+function viewMaterial(materialId) {
+    showAlert(`Viewing material with ID: ${materialId}`, 'info');
+}
+
+function deleteMaterial(materialId) {
+    if (confirm('Are you sure you want to delete this material? This action cannot be undone.')) {
+        fetch(`/api/textbooks/${materialId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                showAlert('Material deleted successfully!', 'success');
+                loadUploadedMaterials(); // Reload the list
+            } else {
+                showAlert('Failed to delete material.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Delete error:', error);
+            showAlert('Failed to delete material.', 'error');
+        });
+    }
+}
+
+// Load session stats
+async function loadSessionStats() {
+    try {
+        const response = await fetch('/api/session-stats/');
+        const stats = await response.json();
+        
+        // Update stats display
+        const questionsAsked = document.getElementById('questionsAsked');
+        const avgResponseTime = document.getElementById('avgResponseTime');
+        const avgRating = document.getElementById('avgRating');
+        const sourcesUsed = document.getElementById('sourcesUsed');
+        
+        if (questionsAsked) questionsAsked.textContent = stats.total_questions || 0;
+        if (avgResponseTime) avgResponseTime.textContent = `${Math.round(stats.avg_response_time || 0)}ms`;
+        if (avgRating) avgRating.textContent = (stats.avg_rating || 0).toFixed(1);
+        if (sourcesUsed) sourcesUsed.textContent = stats.total_sources || 0;
+        
+        console.log('📊 Session stats loaded');
+    } catch (error) {
+        console.error('❌ Load session stats error:', error);
+    }
+}
+
+// Show alert function
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type}`;
+    alertDiv.innerHTML = `
+        <span>${message}</span>
+        <button onclick="this.parentElement.remove()" class="alert-close">&times;</button>
+    `;
     
-    const modal = document.getElementById('feedbackModal');
+    // Insert at the top of the page
+    document.body.insertBefore(alertDiv, document.body.firstChild);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentElement) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Modal functions
+function openManageModal() {
+    const modal = document.getElementById('manageModal');
     if (modal) {
         modal.style.display = 'block';
         modal.classList.add('show');
-        
-        // Reset rating
-        document.querySelectorAll('.star').forEach(star => star.classList.remove('active'));
-        document.getElementById('ratingLabel').textContent = 'Select a rating';
-        document.getElementById('feedbackComment').value = '';
     }
 }
 
-function closeFeedbackModal() {
-    const modal = document.getElementById('feedbackModal');
+function closeManageModal() {
+    const modal = document.getElementById('manageModal');
     if (modal) {
         modal.style.display = 'none';
         modal.classList.remove('show');
-        currentFeedbackData = null;
     }
 }
 
-function submitFeedback() {
-    const selectedRating = document.querySelector('.star.active');
-    const comment = document.getElementById('feedbackComment').value.trim();
-    
-    if (!selectedRating) {
-        alert('Please select a rating.');
-        return;
-    }
-    
-    const rating = parseInt(selectedRating.dataset.rating);
-    
-    // Send feedback to backend
-    fetch('/api/feedback/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({
-            rating: rating,
-            comment: comment,
-            response_text: currentFeedbackData.responseText,
-            response_time: currentFeedbackData.responseTime
-        })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.success) {
-            alert('Thank you for your feedback!');
-            closeFeedbackModal();
-        } else {
-            alert(result.error || 'Failed to submit feedback.');
-        }
-    })
-    .catch(error => {
-        console.error('❌ Feedback submission error:', error);
-        alert('Failed to submit feedback. Please try again.');
-    });
-}
-
-// Chat History Functions
 function openChatHistoryModal() {
     const modal = document.getElementById('chatHistoryModal');
     if (modal) {
@@ -570,24 +588,91 @@ function closeChatHistoryModal() {
     }
 }
 
-function loadChatHistory() {
-    const dateFilter = document.getElementById('historyDateFilter').value;
+// Add subject and grade functions
+async function addSubject() {
+    const nameInput = document.getElementById('newSubjectName');
+    const name = nameInput.value.trim();
+    
+    if (!name) {
+        showAlert('Please enter a subject name.', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/subjects/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ name: name })
+        });
+        
+        if (response.ok) {
+            showAlert('Subject added successfully!', 'success');
+            nameInput.value = '';
+            location.reload();
+        } else {
+            const result = await response.json();
+            showAlert(result.error || 'Failed to add subject.', 'error');
+        }
+    } catch (error) {
+        console.error('Add subject error:', error);
+        showAlert('Failed to add subject. Please try again.', 'error');
+    }
+}
+
+async function addGrade() {
+    const levelInput = document.getElementById('newGradeLevel');
+    const level = parseInt(levelInput.value);
+    
+    if (!level || level < 1 || level > 12) {
+        showAlert('Please enter a valid grade level (1-12).', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/grades/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ level: level })
+        });
+        
+        if (response.ok) {
+            showAlert('Grade added successfully!', 'success');
+            levelInput.value = '';
+            location.reload();
+        } else {
+            const result = await response.json();
+            showAlert(result.error || 'Failed to add grade.', 'error');
+        }
+    } catch (error) {
+        console.error('Add grade error:', error);
+        showAlert('Failed to add grade. Please try again.', 'error');
+    }
+}
+
+// Load chat history
+async function loadChatHistory() {
     const historyContent = document.getElementById('chatHistoryContent');
+    if (!historyContent) return;
     
-    historyContent.innerHTML = '<div class="loading">Loading chat history...</div>';
-    
-    fetch(`/api/feedback/?date_filter=${dateFilter}`)
-    .then(response => response.json())
-    .then(data => {
+    try {
+        const response = await fetch('/api/feedback/');
+        const data = await response.json();
+        
         if (data.results && data.results.length > 0) {
-            const historyHtml = data.results.map(item => `
-                <div class="history-item">
-                    <div class="history-question">${escapeHtml(item.query_text)}</div>
-                    <div class="history-answer">${formatAIResponse(item.response_text)}</div>
-                    <div class="history-meta">
-                        <span class="history-time">${new Date(item.created_at).toLocaleString()}</span>
-                        ${item.rating ? `<span class="history-rating">Rating: ${item.rating}/5</span>` : ''}
-                        ${item.response_time ? `<span class="history-response-time">${item.response_time}ms</span>` : ''}
+            const historyHtml = data.results.slice(0, 10).map(item => `
+                <div class="chat-history-item">
+                    <div class="chat-history-question">${item.query_text}</div>
+                    <div class="chat-history-answer">${item.response_text}</div>
+                    <div class="chat-history-meta">
+                        <span class="chat-history-time">${new Date(item.created_at).toLocaleString()}</span>
+                        ${item.rating ? `<span class="chat-history-rating">Rating: ${item.rating}/5</span>` : ''}
+                        ${item.response_time_ms ? `<span class="chat-history-response-time">${item.response_time_ms}ms</span>` : ''}
                     </div>
                 </div>
             `).join('');
@@ -595,11 +680,10 @@ function loadChatHistory() {
         } else {
             historyContent.innerHTML = '<div class="empty-state">No chat history found.</div>';
         }
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('❌ Load chat history error:', error);
         historyContent.innerHTML = '<div class="error">Failed to load chat history.</div>';
-    });
+    }
 }
 
 function exportChatHistory() {
@@ -623,7 +707,201 @@ function exportChatHistory() {
     });
 }
 
-function clearChat() {
+console.log('✅ Critical functions loaded and ready!');
+
+// CRITICAL: Define all functions immediately in template
+window.askQuestion = function() {
+    console.log('❓ Asking question...');
+    const questionInput = document.getElementById('questionInput');
+    const question = questionInput.value.trim();
+    
+    if (!question) {
+        showAlert('Please enter a question.', 'error');
+        return;
+    }
+
+    // Get selected textbook
+    const textbookFilter = document.getElementById('textbookFilter');
+    const selectedTextbookId = textbookFilter ? textbookFilter.value : '';
+    
+    console.log('Question:', question);
+    console.log('Selected textbook ID:', selectedTextbookId);
+    
+    // Show loading
+    showLoading('AI is thinking...');
+    
+    // Add user message to chat
+    addMessage('user', question);
+    
+    // Clear input
+    questionInput.value = '';
+    
+    fetch('/api/ask/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        },
+        body: JSON.stringify({
+            question: question,
+            type: 'rag',
+            persona: 'helpful_tutor',
+            textbook_id: selectedTextbookId || ''
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        hideLoading();
+        
+        if (result.answer) {
+            console.log('✅ Question answered successfully');
+            console.log('📝 Full AI response:', result.answer);
+            console.log('📝 Response length:', result.answer.length);
+            // Add AI response to chat
+            addMessage('ai', result.answer, result.sources, result.response_time_ms);
+            
+            // Show feedback modal after a short delay
+            setTimeout(() => {
+                if (typeof showFeedbackModal === 'function') {
+                    showFeedbackModal(result.query_log_id);
+                }
+            }, 1000);
+            
+            // Update session stats after successful response
+            setTimeout(() => {
+                updateSessionStats();
+            }, 500);
+            
+        } else {
+            console.error('❌ Question failed:', result.error);
+            addMessage('error', `Error: ${result.error || 'Failed to get response'}`);
+        }
+    })
+    .catch(error => {
+        hideLoading();
+        console.error('❌ Question error:', error);
+        addMessage('error', 'Network error. Please try again.');
+    });
+};
+
+window.refreshTextbookDropdown = async function() {
+    console.log('🔄 Refreshing textbook dropdown...');
+    const dropdown = document.getElementById('textbookFilter');
+    if (!dropdown) {
+        console.error('❌ Dropdown not found: textbookFilter');
+        return;
+    }
+    try {
+        const response = await fetch('/api/textbooks/');
+        const data = await response.json();
+        console.log('📚 Dropdown API response:', data);
+        
+        const textbooks = data.results || data;
+        console.log('📚 Textbooks for dropdown:', textbooks);
+        
+        dropdown.innerHTML = '<option value="">All Textbooks</option>';
+        textbooks.forEach(book => {
+            const status = book.processing_status;
+            const statusIcon = getStatusIcon(status);
+            const option = document.createElement('option');
+            option.value = book.id;
+            option.textContent = `${book.title} (${book.subject.name}, Grade ${book.grade.level}) ${statusIcon} [${status}]`;
+            dropdown.appendChild(option);
+        });
+        console.log('📚 Textbook dropdown refreshed with', textbooks.length, 'books');
+    } catch (error) {
+        console.error('❌ Refresh dropdown error:', error);
+    }
+};
+
+window.addMessage = function(type, content, sources = null, responseTime = null) {
+    console.log(`📝 Adding ${type} message, content length:`, content ? content.length : 0);
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) return;
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    
+    let messageContent = '';
+    
+    if (type === 'user') {
+        messageContent = `
+            <div class="message-content">
+                <strong>You:</strong> ${escapeHtml(content)}
+            </div>
+        `;
+    } else if (type === 'ai') {
+        console.log('📝 Formatting AI response, original length:', content.length);
+        const formattedContent = formatAIResponse(content);
+        console.log('📝 Formatted content length:', formattedContent.length);
+        
+        messageContent = `
+            <div class="message-content">
+                <strong>AI Tutor:</strong> ${formattedContent}
+            </div>
+        `;
+        
+        if (sources && sources.length > 0) {
+            messageContent += `
+                <div class="message-sources">
+                    <strong>Sources:</strong>
+                    <ul>
+                        ${sources.map(source => `
+                            <li>${source.textbook_title} (${source.subject}, Grade ${source.grade}) - Relevance: ${(source.similarity_score * 100).toFixed(1)}%</li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        if (responseTime) {
+            messageContent += `
+                <div class="message-meta">
+                    <small>Response time: ${responseTime}ms</small>
+                </div>
+            `;
+        }
+    } else if (type === 'error') {
+        messageContent = `
+            <div class="message-content error">
+                <strong>Error:</strong> ${escapeHtml(content)}
+            </div>
+        `;
+    }
+    
+    console.log('📝 Final message content length:', messageContent.length);
+    messageDiv.innerHTML = messageContent;
+    chatMessages.appendChild(messageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    console.log('📝 Message added to chat');
+};
+
+window.formatAIResponse = function(text) {
+    return text
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/`(.*?)`/g, '<code>$1</code>');
+};
+
+window.escapeHtml = function(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+};
+
+window.getStatusIcon = function(status) {
+    switch (status) {
+        case 'pending': return '⏳';
+        case 'processing': return '🔄';
+        case 'completed': return '✅';
+        case 'failed': return '❌';
+        default: return '⏳';
+    }
+};
+
+window.clearChat = function() {
     console.log('🗑️ Clearing chat...');
     const chatMessages = document.getElementById('chatMessages');
     if (chatMessages) {
@@ -634,115 +912,129 @@ function clearChat() {
             </div>
         `;
     }
-}
+};
 
-function loadHistory() {
-    console.log('📜 Loading history...');
-    // Placeholder - will be implemented by main JS
-}
-
-function loadTopics() {
-    console.log('📚 Loading topics...');
-    // Placeholder - will be implemented by main JS
-}
-
-function loadMetrics() {
-    console.log('📈 Loading metrics...');
-    // Placeholder - will be implemented by main JS
-}
-
-function exportChat() {
+window.exportChat = function() {
     console.log('📤 Exporting chat...');
-    // Placeholder - will be implemented by main JS
-}
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        const content = chatMessages.innerText;
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat_export_${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+};
 
-function openManageModal() {
-    console.log('🔧 Opening manage modal...');
-    const modal = document.getElementById('manageModal');
+window.showFeedbackModal = function(queryLogId) {
+    console.log('📝 Opening feedback modal for query:', queryLogId);
+    const modal = document.getElementById('feedbackModal');
     if (modal) {
         modal.style.display = 'block';
         modal.classList.add('show');
+        
+        // Reset rating
+        document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+        const labelElement = document.getElementById('ratingLabel');
+        if (labelElement) labelElement.textContent = 'Select a rating';
+        
+        // Clear comment
+        const commentElement = document.getElementById('feedbackComment');
+        if (commentElement) commentElement.value = '';
+        
+        // Store the query log ID
+        modal.dataset.queryLogId = queryLogId;
     }
-}
+};
 
-function closeManageModal() {
-    console.log('🔧 Closing manage modal...');
-    const modal = document.getElementById('manageModal');
+window.closeFeedbackModal = function() {
+    console.log('📝 Closing feedback modal');
+    const modal = document.getElementById('feedbackModal');
     if (modal) {
         modal.style.display = 'none';
         modal.classList.remove('show');
+        modal.dataset.queryLogId = '';
     }
-}
+};
 
-function addSubject() {
-    console.log('📚 Adding subject...');
-    const nameInput = document.getElementById('newSubjectName');
-    const name = nameInput.value.trim();
+window.submitFeedback = function() {
+    console.log('📝 Submitting feedback...');
     
-    if (!name) {
-        alert('Please enter a subject name.');
+    const modal = document.getElementById('feedbackModal');
+    const queryLogId = modal ? modal.dataset.queryLogId : null;
+    
+    if (!queryLogId) {
+        showAlert('No active query to rate.', 'error');
         return;
     }
     
-    fetch('/api/subjects/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-        },
-        body: JSON.stringify({ name: name })
-    })
-    .then(response => response.json())
-    .then(result => {
-        if (result.id) {
-            alert('Subject added successfully!');
-            nameInput.value = '';
-            location.reload();
-        } else {
-            alert(result.error || 'Failed to add subject.');
-        }
-    })
-    .catch(error => {
-        console.error('❌ Add subject error:', error);
-        alert('Failed to add subject. Please try again.');
-    });
-}
-
-function addGrade() {
-    console.log('📚 Adding grade...');
-    const levelInput = document.getElementById('newGradeLevel');
-    const level = parseInt(levelInput.value);
-    
-    if (!level || level < 1 || level > 12) {
-        alert('Please enter a valid grade level (1-12).');
+    const activeStar = document.querySelector('.star.active');
+    if (!activeStar) {
+        showAlert('Please select a rating.', 'error');
         return;
     }
     
-    fetch('/api/grades/', {
+    const rating = parseInt(activeStar.dataset.rating);
+    const comment = document.getElementById('feedbackComment').value.trim();
+    
+    fetch('/api/feedback/', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            'X-CSRFToken': getCSRFToken()
         },
-        body: JSON.stringify({ level: level })
+        body: JSON.stringify({
+            query_log_id: queryLogId,
+            rating: rating,
+            feedback_text: comment
+        })
     })
     .then(response => response.json())
     .then(result => {
-        if (result.id) {
-            alert('Grade added successfully!');
-            levelInput.value = '';
-            location.reload();
+        if (result.success) {
+            showAlert('Thank you for your feedback!', 'success');
+            closeFeedbackModal();
+            // Update session stats after feedback
+            setTimeout(() => {
+                updateSessionStats();
+            }, 500);
         } else {
-            alert(result.error || 'Failed to add grade.');
+            showAlert(result.error || 'Failed to submit feedback.', 'error');
         }
     })
     .catch(error => {
-        console.error('❌ Add grade error:', error);
-        alert('Failed to add grade. Please try again.');
+        console.error('❌ Submit feedback error:', error);
+        showAlert('Failed to submit feedback.', 'error');
     });
-}
+};
 
-console.log('✅ Critical functions loaded and ready!');
+window.updateSessionStats = async function() {
+    console.log('📊 Updating session stats...');
+    try {
+        const response = await fetch('/api/session-stats/');
+        const stats = await response.json();
+        
+        console.log('📊 Session stats received:', stats);
+        
+        // Update stats display
+        const questionsAsked = document.getElementById('questionsAsked');
+        const avgResponseTime = document.getElementById('avgResponseTime');
+        const avgRating = document.getElementById('avgRating');
+        const sourcesUsed = document.getElementById('sourcesUsed');
+        
+        if (questionsAsked) questionsAsked.textContent = stats.total_questions || 0;
+        if (avgResponseTime) avgResponseTime.textContent = `${Math.round(stats.avg_response_time || 0)}ms`;
+        if (avgRating) avgRating.textContent = (stats.avg_rating || 0).toFixed(1);
+        if (sourcesUsed) sourcesUsed.textContent = stats.total_sources || 0;
+        
+        console.log('📊 Session stats updated successfully');
+    } catch (error) {
+        console.error('❌ Update session stats error:', error);
+    }
+};
 
 // Initialize event listeners
 document.addEventListener('DOMContentLoaded', function() {
@@ -780,6 +1072,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
+    
+    // CRITICAL: Refresh dropdown on page load
+    setTimeout(() => {
+        refreshTextbookDropdown();
+    }, 500);
+    
+    // Load initial session stats
+    setTimeout(() => {
+        updateSessionStats();
+    }, 1000);
     
     console.log('✅ Event listeners initialized!');
 });
