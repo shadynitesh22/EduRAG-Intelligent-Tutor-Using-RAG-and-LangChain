@@ -31,6 +31,7 @@ urlpatterns = [
     path('topics/', views.TopicsView.as_view(), name='topics'),
     path('metrics/', views.MetricsView.as_view(), name='metrics'),
     path('pipeline/', views.RAGPipelineView.as_view(), name='pipeline'),
+    path('rebuild-faiss/', views.RebuildFAISSView.as_view(), name='rebuild-faiss'),
     
     # New endpoints for feedback and audit
     path('feedback/', views.FeedbackView.as_view(), name='feedback'),

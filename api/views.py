@@ -1100,3 +1100,29 @@ class ManageDataView(APIView):
                 {'error': 'Failed to retrieve data'},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class RebuildFAISSView(APIView):
+    def post(self, request):
+        """Force rebuild FAISS index"""
+        try:
+            from protocol.faiss_driver import FAISSDriver
+            from django.core.cache import cache
+            
+            # Clear cache
+            cache.delete('faiss_driver')
+            
+            # Create new driver and force rebuild
+            faiss_driver = FAISSDriver()
+            faiss_driver.force_rebuild_index()
+            
+            return Response(
+                {'message': 'FAISS index rebuilt successfully'},
+                status=status.HTTP_200_OK
+            )
+            
+        except Exception as e:
+            logger.error(f"FAISS rebuild failed: {str(e)}")
+            return Response(
+                {'error': f'FAISS rebuild failed: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

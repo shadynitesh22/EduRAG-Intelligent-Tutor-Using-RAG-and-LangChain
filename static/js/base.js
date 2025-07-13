@@ -330,3 +330,30 @@ function clearChat() {
         showAlert('Chat cleared successfully!', 'success');
     });
 } 
+
+// Function to rebuild FAISS index
+window.rebuildFAISSIndex = function() {
+    console.log('🔄 Rebuilding FAISS index...');
+    
+    fetch('/api/rebuild-faiss/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+        }
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.message) {
+            console.log('✅ FAISS index rebuilt successfully');
+            showNotification('FAISS index rebuilt successfully', 'success');
+        } else {
+            console.error('❌ FAISS rebuild failed:', result.error);
+            showNotification('FAISS rebuild failed: ' + result.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('❌ FAISS rebuild error:', error);
+        showNotification('FAISS rebuild error: ' + error.message, 'error');
+    });
+}; 

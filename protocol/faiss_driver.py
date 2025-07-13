@@ -43,13 +43,21 @@ class FAISSDriver:
             if os.path.exists(f"{self.index_path}.faiss"):
                 self.index = faiss.read_index(f"{self.index_path}.faiss")
                 
-                # Load metadata
-                with open(f"{self.index_path}.metadata", 'rb') as f:
-                    data = pickle.load(f)
-                    self.id_mapping = data['id_mapping']
-                    self.metadata = data['metadata']
-                
-                logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
+                # Check if the loaded index has the correct dimension
+                if self.index.d != self.dimension:
+                    logger.warning(f"FAISS index dimension mismatch: expected {self.dimension}, got {self.index.d}. Rebuilding index.")
+                    self.index = faiss.IndexFlatIP(self.dimension)
+                    self.id_mapping = {}
+                    self.metadata = {}
+                    logger.info("Created new FAISS index with correct dimension")
+                else:
+                    # Load metadata
+                    with open(f"{self.index_path}.metadata", 'rb') as f:
+                        data = pickle.load(f)
+                        self.id_mapping = data['id_mapping']
+                        self.metadata = data['metadata']
+                    
+                    logger.info(f"Loaded FAISS index with {self.index.ntotal} vectors")
             else:
                 self.index = faiss.IndexFlatIP(self.dimension)  # Inner product for cosine similarity
                 self.id_mapping = {}
@@ -111,6 +119,12 @@ class FAISSDriver:
         """Search for similar embeddings"""
         try:
             if self.index.ntotal == 0:
+                logger.info("FAISS index is empty, returning no results")
+                return []
+            
+            # Check query embedding dimension
+            if len(query_embedding) != self.dimension:
+                logger.error(f"Query embedding dimension mismatch: expected {self.dimension}, got {len(query_embedding)}")
                 return []
             
             # Convert query to numpy array and normalize
@@ -119,6 +133,8 @@ class FAISSDriver:
             
             # Search
             scores, indices = self.index.search(query_array, min(top_k * 2, self.index.ntotal))
+            
+            logger.info(f"FAISS search returned {len(scores[0])} results with scores: {scores[0].tolist()}")
             
             results = []
             for i, (score, idx) in enumerate(zip(scores[0], indices[0])):
@@ -140,10 +156,14 @@ class FAISSDriver:
                 if len(results) >= top_k:
                     break
             
+            logger.info(f"After filtering, returning {len(results)} results with scores: {[r['score'] for r in results]}")
             return results
             
         except Exception as e:
             logger.error(f"Error searching FAISS index: {str(e)}")
+            logger.error(f"FAISS search error details: {type(e).__name__}: {e}")
+            import traceback
+            logger.error(f"FAISS search traceback: {traceback.format_exc()}")
             raise
     
     def _matches_filters(self, metadata: Dict[str, Any], filters: Dict[str, Any]) -> bool:
@@ -231,3 +251,61 @@ class FAISSDriver:
         # Note: FAISS doesn't support efficient removal, so we rebuild
         logger.info(f"Removing textbook {textbook_id} requires index rebuild")
         self.rebuild_index()
+
+    def force_rebuild_index(self):
+        """Force rebuild FAISS index from database and clear cache"""
+        try:
+            logger.info("Force rebuilding FAISS index...")
+            
+            # Clear cache
+            cache.delete('faiss_driver')
+            
+            # Create new index
+            self.index = faiss.IndexFlatIP(self.dimension)
+            self.id_mapping = {}
+            self.metadata = {}
+            
+            # Get all chunks with embeddings
+            chunks = ContentChunk.objects.filter(
+                embedding_vector__isnull=False
+            ).select_related('textbook', 'textbook__subject', 'textbook__grade')
+            
+            if not chunks.exists():
+                logger.info("No chunks with embeddings found")
+                return
+            
+            # Collect embeddings
+            embeddings = []
+            for chunk in chunks:
+                embeddings.append(chunk.embedding_vector)
+            
+            # Convert to numpy array
+            embeddings_array = np.array(embeddings, dtype=np.float32)
+            faiss.normalize_L2(embeddings_array)
+            
+            # Add to index
+            self.index.add(embeddings_array)
+            
+            # Update mappings
+            for i, chunk in enumerate(chunks):
+                self.id_mapping[i] = str(chunk.id)
+                self.metadata[i] = {
+                    'chunk_id': str(chunk.id),
+                    'textbook_id': str(chunk.textbook_id),
+                    'subject': chunk.textbook.subject.name,
+                    'grade': chunk.textbook.grade.level,
+                    'chunk_index': chunk.chunk_index,
+                    'title': chunk.textbook.title
+                }
+            
+            # Save index
+            self._save_index()
+            
+            # Update cache
+            cache.set('faiss_driver', self, timeout=None)
+            
+            logger.info(f"Force rebuilt FAISS index with {len(embeddings)} vectors")
+            
+        except Exception as e:
+            logger.error(f"Error force rebuilding FAISS index: {str(e)}")
+            raise

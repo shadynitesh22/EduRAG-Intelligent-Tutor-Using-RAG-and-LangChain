@@ -81,6 +81,9 @@ class RAGPipeline:
                 filters=filters
             )
             
+            # DEBUG: Log similarity scores
+            logger.info(f"Retrieved {len(similar_chunks)} chunks with scores: {[chunk['score'] for chunk in similar_chunks]}")
+            
             # Step 3: Get chunk details from database
             chunk_ids = [chunk['id'] for chunk in similar_chunks]
             chunks = ContentChunk.objects.filter(id__in=chunk_ids).select_related('textbook')
@@ -95,9 +98,17 @@ class RAGPipeline:
                 )
                 chunk_ids = [chunk['id'] for chunk in similar_chunks]
                 chunks = ContentChunk.objects.filter(id__in=chunk_ids).select_related('textbook')
+                logger.info(f"Retrieved {len(similar_chunks)} chunks without filter with scores: {[chunk['score'] for chunk in similar_chunks]}")
+            
+            # DEBUG: Log chunk content
+            for chunk in chunks:
+                logger.info(f"Chunk {chunk.id}: {chunk.chunk_text[:200]}...")
             
             # Step 4: Build context
             context = self._build_context(chunks, similar_chunks)
+            
+            # DEBUG: Log context
+            logger.info(f"Built context with {len(chunks)} chunks, context length: {len(context)}")
             
             # Step 5: Generate response
             response = self._generate_response(question, context, persona, textbook_id)
@@ -280,3 +291,21 @@ class Command(BaseCommand):
             time.sleep(interval)
             waited += interval
         self.stdout.write(self.style.ERROR('Timeout: RAG pipeline did not initialize in time.'))
+
+class RebuildFAISSCommand(BaseCommand):
+    help = 'Force rebuild the FAISS index to fix dimension mismatches.'
+
+    def handle(self, *args, **options):
+        from protocol.faiss_driver import FAISSDriver
+        from django.core.cache import cache
+        
+        self.stdout.write('Force rebuilding FAISS index...')
+        
+        # Clear cache
+        cache.delete('faiss_driver')
+        
+        # Create new driver and force rebuild
+        faiss_driver = FAISSDriver()
+        faiss_driver.force_rebuild_index()
+        
+        self.stdout.write(self.style.SUCCESS('FAISS index rebuilt successfully!'))
