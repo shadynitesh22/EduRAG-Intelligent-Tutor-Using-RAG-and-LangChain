@@ -1,0 +1,74 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Django
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+local_settings.py
+media/
+staticfiles/
+
+# Environment
+.env
+.env.*
+
+# Database
+*.sqlite3
+*.db
+
+# VSCode
+.vscode/
+
+# Docker
+*.pid
+docker-compose.override.yml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Migrations
+**/migrations/*.pyc
+**/migrations/*.pyo
+**/migrations/*.pyd
+**/migrations/__pycache__/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Coverage
+htmlcov/
+.coverage
+.tox/
+.nox/
+
+# Build
+build/
+dist/
+.eggs/
+*.egg-info/
+
+# Pytest
+.cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Postgres Docker volume (if mapped locally)
+postgres_data/

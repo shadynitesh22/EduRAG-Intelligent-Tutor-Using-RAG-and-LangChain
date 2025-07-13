@@ -1,0 +1,789 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}EduRAG - AI Tutor Chat{% endblock %}
+
+{% block content %}
+<!-- Upload Section (always visible) -->
+<div class="upload-section mb-lg">
+    <h3>Upload Study Material</h3>
+    <form id="uploadForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="upload-form-row">
+            <div class="input-group">
+                <label class="form-label">File</label>
+                <div class="file-upload-area" id="fileUploadArea">
+                    <input type="file" id="contentFile" name="file" accept=".txt,.pdf,.docx" class="file-upload-input" required>
+                    <div class="file-upload-icon">📁</div>
+                    <div class="file-upload-text">Click to upload or drag and drop</div>
+                    <div class="file-upload-hint">Supports: PDF, DOCX, TXT (Max: 200MB)</div>
+                </div>
+                <div id="fileValidation" class="file-validation" style="display: none;"></div>
+            </div>
+            <div class="input-group">
+                <label class="form-label">Title</label>
+                <input type="text" id="contentTitle" name="title" class="form-control" placeholder="Enter textbook title" required>
+            </div>
+        </div>
+        <div class="upload-form-row">
+            <div class="input-group">
+                <label class="form-label">Subject</label>
+                <select id="uploadSubject" name="subject_id" class="form-control" required>
+                    <option value="">Select Subject</option>
+                    {% for subject in subjects %}
+                    <option value="{{ subject.id }}">{{ subject.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="input-group">
+                <label class="form-label">Grade</label>
+                <select id="uploadGrade" name="grade_id" class="form-control" required>
+                    <option value="">Select Grade</option>
+                    {% for grade in grades %}
+                    <option value="{{ grade.id }}">Grade {{ grade.level }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="input-group mb-md">
+            <button type="submit" class="btn btn-primary btn-small">Upload Content</button>
+            <button type="button" class="btn btn-secondary btn-small" onclick="openManageModal()">Manage Subjects & Grades</button>
+        </div>
+    </form>
+    <div id="uploadStatus"></div>
+</div>
+
+<!-- Uploaded Materials Section (always visible) -->
+<div class="uploaded-materials-section mb-lg">
+    <h3>Your Uploaded Materials</h3>
+    <div id="uploadedMaterialsList" class="materials-container">
+        {% if uploaded_materials %}
+            {% for material in uploaded_materials %}
+                <div class="material-item mb-md">
+                    <span class="badge badge-title">{{ material.title }}</span>
+                    <span class="badge badge-subject">{{ material.subject.name }}</span>
+                    <span class="badge badge-grade">Grade {{ material.grade.level }}</span>
+                </div>
+            {% endfor %}
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📚</div>
+            <div class="empty-state-text">No materials uploaded yet</div>
+            <div class="empty-state-hint">Upload your first study material to get started</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Main Chat Layout (always visible) -->
+<div class="chat-layout">
+    <!-- Chat Section -->
+    <div class="chat-section">
+        <div class="chat-header">
+            <h2>AI Tutor Chat</h2>
+            <div class="audit-mode-toggle">
+                <label class="switch">
+                    <input type="checkbox" id="auditModeToggle">
+                    <span class="slider round"></span>
+                </label>
+                <span>Audit Mode</span>
+            </div>
+        </div>
+        <div class="chat-messages" id="chatMessages" style="overflow-y:auto;max-height:350px;">
+            <div class="message system">
+                <strong>Welcome to EduRAG!</strong><br>
+                Upload your study material above, then ask me anything about your studies. I can help with various subjects and adapt my teaching style to your needs.
+                <div class="audit-info" id="auditInfo" style="display: none;">
+                    <br><strong>🔍 Audit Mode Active:</strong> All interactions are being logged for analysis and improvement.
+                </div>
+            </div>
+        </div>
+        <div id="uploadPrompt" class="message system" style="display:none;"></div>
+        <div class="loading" id="loading" style="display: none;"></div>
+        <div class="chat-input-section">
+            <div class="chat-input-group">
+                <textarea id="questionInput" class="form-control" placeholder="Ask your question here..." rows="4"></textarea>
+                <button class="btn btn-primary btn-large" id="askBtn" onclick="askQuestion()">Ask Question</button>
+            </div>
+            <div class="chat-filters">
+                <select id="textbookFilter" class="form-control">
+                    <option value="">All Textbooks</option>
+                    {% for material in uploaded_materials %}
+                    <option value="{{ material.id }}">{{ material.title }} ({{ material.subject.name }}, Grade {{ material.grade.level }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <!-- Chat History Section -->
+        <div class="chat-history-section" id="chatHistorySection" style="margin-top:2rem;">
+            <h4>Chat History</h4>
+            <div id="chatHistoryList"></div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <!-- Controls Panel -->
+        <div class="sidebar-section controls-panel">
+            <div class="sidebar-section-header">
+                <h3>🎛️ Controls</h3>
+            </div>
+            <div class="sidebar-section-content">
+                <h4>Tutor Persona</h4>
+                <div class="persona-selector">
+                    <div class="persona-btn active" data-persona="helpful_tutor">Helpful</div>
+                    <div class="persona-btn" data-persona="socratic_tutor">Socratic</div>
+                    <div class="persona-btn" data-persona="encouraging_tutor">Encouraging</div>
+                    <div class="persona-btn" data-persona="strict_tutor">Strict</div>
+                </div>
+                
+                <h4>System Status</h4>
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-indicator status-online"></span>
+                        <span>Backend</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator status-online"></span>
+                        <span>AI Model</span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-indicator status-online"></span>
+                        <span>Vector DB</span>
+                    </div>
+                </div>
+                
+                <button class="btn btn-secondary btn-small sidebar-btn" onclick="clearChat()">Clear Chat</button>
+                <button class="btn btn-secondary btn-small sidebar-btn" onclick="exportChat()">Export Chat</button>
+                <button class="btn btn-secondary btn-small sidebar-btn" onclick="openChatHistoryModal()">Chat History</button>
+            </div>
+        </div>
+
+        <!-- Session Stats -->
+        <div class="sidebar-section session-stats">
+            <div class="sidebar-section-header">
+                <h3>📊 Session Stats</h3>
+            </div>
+            <div class="sidebar-section-content">
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-value" id="questionsAsked">{{ session_stats.questions_asked }}</div>
+                        <div class="metric-label">Questions</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="avgResponseTime">{{ session_stats.avg_response_time }}ms</div>
+                        <div class="metric-label">Avg Response</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="avgRating">{{ session_stats.avg_rating|floatformat:1 }}</div>
+                        <div class="metric-label">Avg Rating</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-value" id="sourcesUsed">{{ session_stats.sources_used }}</div>
+                        <div class="metric-label">Sources Used</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent History -->
+        <!-- <div class="sidebar-section history-panel">
+            <div class="sidebar-section-header">
+                <h3>🕒 Recent History</h3>
+            </div>
+            <div class="sidebar-section-content">
+                <div id="historyList">
+                    {% for question in recent_questions %}
+                    <div class="history-item" data-question="{{ question.query_text }}" 
+                         data-persona="{{ question.persona_used }}" 
+                         data-subject="{{ question.subject_filter }}"
+                         data-grade="{{ question.grade_filter }}">
+                        <div class="history-item-question">{{ question.query_text|truncatechars:50 }}</div>
+                        <div class="history-item-meta">
+                            {{ question.get_persona_used_display|default:"Helpful" }} | 
+                            {{ question.created_at|time }}
+                        </div>
+                        {% if question.rating %}
+                        <div class="history-item-rating">
+                            Rating: {{ question.rating }}/5
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% empty %}
+                    <div class="history-item empty">No previous questions</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div> -->
+    </div>
+</div>
+
+<!-- Feedback Modal -->
+<div id="feedbackModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Rate This Response</h3>
+            <button class="modal-close" onclick="closeFeedbackModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="rating-section">
+                <div class="rating-stars">
+                    <span class="star" data-rating="1">⭐</span>
+                    <span class="star" data-rating="2">⭐</span>
+                    <span class="star" data-rating="3">⭐</span>
+                    <span class="star" data-rating="4">⭐</span>
+                    <span class="star" data-rating="5">⭐</span>
+                </div>
+                <div class="rating-label" id="ratingLabel">Select a rating</div>
+            </div>
+            <div class="input-group">
+                <label class="form-label">Additional Comments (Optional)</label>
+                <textarea id="feedbackComment" class="form-control" placeholder="Share your thoughts about this response..." rows="3"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="submitFeedback()">Submit Feedback</button>
+                <button class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chat History Modal -->
+<div id="chatHistoryModal" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3 class="modal-title">Chat History</h3>
+            <button class="modal-close" onclick="closeChatHistoryModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="history-filters">
+                <select id="historyDateFilter" class="form-control">
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+                <button class="btn btn-secondary btn-small" onclick="exportChatHistory()">Export History</button>
+            </div>
+            <div id="chatHistoryContent" class="chat-history-content">
+                <!-- Chat history will be loaded here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Subjects & Grades Modal -->
+<div id="manageModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Manage Subjects & Grades</h3>
+            <button class="modal-close" onclick="closeManageModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="input-group">
+                <label class="form-label">Add New Subject</label>
+                <div class="input-group-row">
+                    <input type="text" id="newSubjectName" class="form-control" placeholder="Subject name">
+                    <button type="button" class="btn btn-primary" onclick="addSubject()">Add Subject</button>
+                </div>
+            </div>
+            <div class="input-group">
+                <label class="form-label">Add New Grade</label>
+                <div class="input-group-row">
+                    <input type="number" id="newGradeLevel" class="form-control" placeholder="Grade level" min="1" max="12">
+                    <button type="button" class="btn btn-primary" onclick="addGrade()">Add Grade</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/e_chat.js' %}"></script>
+<script>
+// Ensure critical functions are always available
+function askQuestion() {
+    console.log('❓ Asking question...');
+    const questionInput = document.getElementById('questionInput');
+    const question = questionInput.value.trim();
+    
+    if (!question) {
+        if (typeof showAlert === 'function') {
+            showAlert('Please enter a question.', 'error');
+        } else {
+            alert('Please enter a question.');
+        }
+        return;
+    }
+
+    // Get selected textbook
+    const textbookFilter = document.getElementById('textbookFilter');
+    const selectedTextbookId = textbookFilter ? textbookFilter.value : '';
+    
+    console.log('Question:', question);
+    console.log('Selected textbook ID:', selectedTextbookId);
+    
+    // Show loading
+    if (typeof showLoading === 'function') {
+        showLoading('AI is thinking...');
+    }
+    
+    // Add user message to chat
+    if (typeof addMessage === 'function') {
+        addMessage('user', question);
+    }
+    
+    // Clear input
+    questionInput.value = '';
+    
+    // Make API call
+    fetch('/api/ask/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            question: question,
+            type: 'rag',
+            persona: 'helpful_tutor',
+            textbook_id: selectedTextbookId || ''
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
+        
+        if (result.answer) {
+            console.log('✅ Question answered successfully');
+            if (typeof addMessage === 'function') {
+                addMessage('ai', result.answer, result.sources, result.response_time_ms);
+            }
+        } else {
+            console.error('❌ Question failed:', result.error);
+            if (typeof addMessage === 'function') {
+                addMessage('system', result.error || 'Sorry, I encountered an error. Please try again.');
+            }
+        }
+    })
+    .catch(error => {
+        console.error('❌ Ask question error:', error);
+        if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
+        if (typeof addMessage === 'function') {
+            addMessage('system', 'Sorry, I encountered an error. Please check your connection and try again.');
+        }
+    });
+}
+
+// Add other missing functions
+function addMessage(type, content, sources = null, responseTime = null) {
+    console.log('💬 Adding message:', type, content.substring(0, 50) + '...');
+    const chatMessages = document.getElementById('chatMessages');
+    if (!chatMessages) {
+        console.error('❌ Chat messages container not found!');
+        return;
+    }
+    
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}`;
+    
+    let html = '';
+    
+    if (type === 'user') {
+        html = `
+            <div class="message-content">
+                <div class="message-text">${escapeHtml(content)}</div>
+                <div class="message-meta">
+                    <span class="message-time">${new Date().toLocaleTimeString()}</span>
+                </div>
+            </div>
+        `;
+    } else if (type === 'ai') {
+        // Format the content with markdown-like formatting
+        const formattedContent = formatAIResponse(content);
+        
+        html = `
+            <div class="message-content">
+                <div class="message-text ai-response">${formattedContent}</div>
+                ${sources && sources.length > 0 ? `
+                    <div class="message-sources">
+                        <div class="sources-header">📚 Sources:</div>
+                        ${sources.map(source => `
+                            <div class="source-item">
+                                <div class="source-title">${source.textbook_title || 'Unknown Source'}</div>
+                                <div class="source-meta">
+                                    ${source.subject || 'Unknown'} | Grade ${source.grade || 'Unknown'} | 
+                                    Similarity: ${(source.similarity_score * 100).toFixed(1)}%
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                <div class="message-meta">
+                    <span class="message-time">${new Date().toLocaleTimeString()}</span>
+                    ${responseTime ? `<span class="response-time">${responseTime}ms</span>` : ''}
+                    <button class="btn btn-small btn-secondary" onclick="showFeedbackModal()">Rate Response</button>
+                </div>
+            </div>
+        `;
+    } else {
+        html = `
+            <div class="message-content">
+                <div class="message-text">${escapeHtml(content)}</div>
+            </div>
+        `;
+    }
+    
+    messageDiv.innerHTML = html;
+    chatMessages.appendChild(messageDiv);
+    
+    // Scroll to bottom smoothly
+    chatMessages.scrollTo({
+        top: chatMessages.scrollHeight,
+        behavior: 'smooth'
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Format AI response with markdown-like formatting
+function formatAIResponse(text) {
+    // Convert **bold** to <strong>bold</strong>
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    
+    // Convert *italic* to <em>italic</em>
+    text = text.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    
+    // Convert numbered lists
+    text = text.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+    text = text.replace(/(<li>.*<\/li>)/s, '<ol>$1</ol>');
+    
+    // Convert bullet lists
+    text = text.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
+    text = text.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+    
+    // Convert line breaks to <br>
+    text = text.replace(/\n/g, '<br>');
+    
+    // Convert paragraphs
+    text = text.replace(/<br><br>/g, '</p><p>');
+    text = '<p>' + text + '</p>';
+    
+    return text;
+}
+
+// Feedback Modal Functions
+let currentFeedbackData = null;
+
+function openFeedbackModal(responseText, responseTime) {
+    currentFeedbackData = {
+        responseText: responseText,
+        responseTime: responseTime,
+        timestamp: new Date().toISOString()
+    };
+    
+    const modal = document.getElementById('feedbackModal');
+    if (modal) {
+        modal.style.display = 'block';
+        modal.classList.add('show');
+        
+        // Reset rating
+        document.querySelectorAll('.star').forEach(star => star.classList.remove('active'));
+        document.getElementById('ratingLabel').textContent = 'Select a rating';
+        document.getElementById('feedbackComment').value = '';
+    }
+}
+
+function closeFeedbackModal() {
+    const modal = document.getElementById('feedbackModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        currentFeedbackData = null;
+    }
+}
+
+function submitFeedback() {
+    const selectedRating = document.querySelector('.star.active');
+    const comment = document.getElementById('feedbackComment').value.trim();
+    
+    if (!selectedRating) {
+        alert('Please select a rating.');
+        return;
+    }
+    
+    const rating = parseInt(selectedRating.dataset.rating);
+    
+    // Send feedback to backend
+    fetch('/api/feedback/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            rating: rating,
+            comment: comment,
+            response_text: currentFeedbackData.responseText,
+            response_time: currentFeedbackData.responseTime
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.success) {
+            alert('Thank you for your feedback!');
+            closeFeedbackModal();
+        } else {
+            alert(result.error || 'Failed to submit feedback.');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Feedback submission error:', error);
+        alert('Failed to submit feedback. Please try again.');
+    });
+}
+
+// Chat History Functions
+function openChatHistoryModal() {
+    const modal = document.getElementById('chatHistoryModal');
+    if (modal) {
+        modal.style.display = 'block';
+        modal.classList.add('show');
+        loadChatHistory();
+    }
+}
+
+function closeChatHistoryModal() {
+    const modal = document.getElementById('chatHistoryModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
+}
+
+function loadChatHistory() {
+    const dateFilter = document.getElementById('historyDateFilter').value;
+    const historyContent = document.getElementById('chatHistoryContent');
+    
+    historyContent.innerHTML = '<div class="loading">Loading chat history...</div>';
+    
+    fetch(`/api/feedback/?date_filter=${dateFilter}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.results && data.results.length > 0) {
+            const historyHtml = data.results.map(item => `
+                <div class="history-item">
+                    <div class="history-question">${escapeHtml(item.query_text)}</div>
+                    <div class="history-answer">${formatAIResponse(item.response_text)}</div>
+                    <div class="history-meta">
+                        <span class="history-time">${new Date(item.created_at).toLocaleString()}</span>
+                        ${item.rating ? `<span class="history-rating">Rating: ${item.rating}/5</span>` : ''}
+                        ${item.response_time ? `<span class="history-response-time">${item.response_time}ms</span>` : ''}
+                    </div>
+                </div>
+            `).join('');
+            historyContent.innerHTML = historyHtml;
+        } else {
+            historyContent.innerHTML = '<div class="empty-state">No chat history found.</div>';
+        }
+    })
+    .catch(error => {
+        console.error('❌ Load chat history error:', error);
+        historyContent.innerHTML = '<div class="error">Failed to load chat history.</div>';
+    });
+}
+
+function exportChatHistory() {
+    const dateFilter = document.getElementById('historyDateFilter').value;
+    
+    fetch(`/api/feedback/export/?date_filter=${dateFilter}`)
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `chat_history_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    })
+    .catch(error => {
+        console.error('❌ Export chat history error:', error);
+        alert('Failed to export chat history.');
+    });
+}
+
+function clearChat() {
+    console.log('🗑️ Clearing chat...');
+    const chatMessages = document.getElementById('chatMessages');
+    if (chatMessages) {
+        chatMessages.innerHTML = `
+            <div class="message system">
+                <strong>Welcome to EduRAG!</strong><br>
+                Upload your study material above, then ask me anything about your studies. I can help with various subjects and adapt my teaching style to your needs.
+            </div>
+        `;
+    }
+}
+
+function loadHistory() {
+    console.log('📜 Loading history...');
+    // Placeholder - will be implemented by main JS
+}
+
+function loadTopics() {
+    console.log('📚 Loading topics...');
+    // Placeholder - will be implemented by main JS
+}
+
+function loadMetrics() {
+    console.log('📈 Loading metrics...');
+    // Placeholder - will be implemented by main JS
+}
+
+function exportChat() {
+    console.log('📤 Exporting chat...');
+    // Placeholder - will be implemented by main JS
+}
+
+function openManageModal() {
+    console.log('🔧 Opening manage modal...');
+    const modal = document.getElementById('manageModal');
+    if (modal) {
+        modal.style.display = 'block';
+        modal.classList.add('show');
+    }
+}
+
+function closeManageModal() {
+    console.log('🔧 Closing manage modal...');
+    const modal = document.getElementById('manageModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
+}
+
+function addSubject() {
+    console.log('📚 Adding subject...');
+    const nameInput = document.getElementById('newSubjectName');
+    const name = nameInput.value.trim();
+    
+    if (!name) {
+        alert('Please enter a subject name.');
+        return;
+    }
+    
+    fetch('/api/subjects/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({ name: name })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.id) {
+            alert('Subject added successfully!');
+            nameInput.value = '';
+            location.reload();
+        } else {
+            alert(result.error || 'Failed to add subject.');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Add subject error:', error);
+        alert('Failed to add subject. Please try again.');
+    });
+}
+
+function addGrade() {
+    console.log('📚 Adding grade...');
+    const levelInput = document.getElementById('newGradeLevel');
+    const level = parseInt(levelInput.value);
+    
+    if (!level || level < 1 || level > 12) {
+        alert('Please enter a valid grade level (1-12).');
+        return;
+    }
+    
+    fetch('/api/grades/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({ level: level })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.id) {
+            alert('Grade added successfully!');
+            levelInput.value = '';
+            location.reload();
+        } else {
+            alert(result.error || 'Failed to add grade.');
+        }
+    })
+    .catch(error => {
+        console.error('❌ Add grade error:', error);
+        alert('Failed to add grade. Please try again.');
+    });
+}
+
+console.log('✅ Critical functions loaded and ready!');
+
+// Initialize event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Rating stars event listeners
+    document.querySelectorAll('.star').forEach(star => {
+        star.addEventListener('click', function() {
+            const rating = parseInt(this.dataset.rating);
+            
+            // Update star display
+            document.querySelectorAll('.star').forEach(s => s.classList.remove('active'));
+            for (let i = 1; i <= rating; i++) {
+                const starElement = document.querySelector(`[data-rating="${i}"]`);
+                if (starElement) starElement.classList.add('active');
+            }
+            
+            // Update label
+            const labels = ['Select a rating', 'Poor', 'Fair', 'Good', 'Very Good', 'Excellent'];
+            const labelElement = document.getElementById('ratingLabel');
+            if (labelElement) labelElement.textContent = labels[rating];
+        });
+    });
+    
+    // History filter change listener
+    const historyDateFilter = document.getElementById('historyDateFilter');
+    if (historyDateFilter) {
+        historyDateFilter.addEventListener('change', loadChatHistory);
+    }
+    
+    // Modal close on outside click
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.style.display = 'none';
+                this.classList.remove('show');
+            }
+        });
+    });
+    
+    console.log('✅ Event listeners initialized!');
+});
+</script>
+{% endblock %}
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            

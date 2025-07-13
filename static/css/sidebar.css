@@ -1,0 +1,283 @@
+/* Sidebar CSS for EduRAG Platform */
+
+/* Main Sidebar */
+.sidebar {
+    width: 320px;
+    background: var(--white);
+    border-left: 1px solid var(--gray-200);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+}
+
+/* Sidebar Sections */
+.sidebar-section {
+    border-bottom: 1px solid var(--gray-200);
+    background: var(--white);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-section:last-child {
+    border-bottom: none;
+    flex: 1;
+}
+
+.sidebar-section-header {
+    padding: var(--spacing-lg);
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--white) 100%);
+    border-bottom: 1px solid var(--gray-200);
+    flex-shrink: 0;
+}
+
+.sidebar-section-header h3 {
+    font-family: var(--font-heading);
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.sidebar-section-content {
+    padding: var(--spacing-lg);
+    flex: 1;
+    overflow-y: auto;
+    max-height: 300px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gray-300) var(--gray-100);
+}
+
+.sidebar-section-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-section-content::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 3px;
+}
+
+.sidebar-section-content::-webkit-scrollbar-thumb {
+    background: var(--gray-300);
+    border-radius: 3px;
+}
+
+.sidebar-section-content::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-400);
+}
+
+/* Controls Panel */
+.controls-panel {
+    flex-shrink: 0;
+}
+
+.persona-selector {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.persona-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    background: var(--white);
+    color: var(--gray-700);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.persona-btn:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-300);
+}
+
+.persona-btn.active {
+    background: var(--primary-color);
+    color: var(--white);
+    border-color: var(--primary-color);
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    font-size: 0.875rem;
+    color: var(--gray-600);
+}
+
+.sidebar-btn {
+    width: 100%;
+    margin-bottom: var(--spacing-sm);
+}
+
+/* Session Stats */
+.session-stats {
+    flex-shrink: 0;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--spacing-md);
+}
+
+.metric-card {
+    text-align: center;
+    padding: var(--spacing-md);
+    background: linear-gradient(135deg, var(--gray-50) 0%, var(--white) 100%);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--gray-200);
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-xs);
+}
+
+.metric-label {
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Topics Panel */
+.topics-panel {
+    flex: 1;
+    min-height: 200px;
+}
+
+.topic-item {
+    padding: var(--spacing-md);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-sm);
+    background: var(--white);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.topic-item:hover {
+    background: var(--gray-50);
+    border-color: var(--primary-color);
+}
+
+.topic-item.empty {
+    color: var(--gray-500);
+    font-style: italic;
+    cursor: default;
+}
+
+.topic-item.empty:hover {
+    background: var(--white);
+    border-color: var(--gray-200);
+}
+
+/* Metrics Panel */
+.metrics-panel {
+    flex: 1;
+    min-height: 200px;
+}
+
+.metric-item {
+    padding: var(--spacing-md);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-sm);
+    background: var(--white);
+}
+
+.metric-item.empty {
+    color: var(--gray-500);
+    font-style: italic;
+    text-align: center;
+}
+
+/* History Panel */
+.history-panel {
+    flex: 1;
+    min-height: 200px;
+}
+
+.history-item {
+    padding: var(--spacing-md);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-sm);
+    background: var(--white);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.history-item:hover {
+    background: var(--gray-50);
+    border-color: var(--primary-color);
+}
+
+.history-item.empty {
+    color: var(--gray-500);
+    font-style: italic;
+    cursor: default;
+}
+
+.history-item.empty:hover {
+    background: var(--white);
+    border-color: var(--gray-200);
+}
+
+.history-item-question {
+    font-weight: 500;
+    color: var(--gray-900);
+    margin-bottom: var(--spacing-xs);
+}
+
+.history-item-meta {
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    margin-bottom: var(--spacing-xs);
+}
+
+.history-item-rating {
+    font-size: 0.75rem;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 280px;
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: auto;
+        border-left: none;
+        border-top: 1px solid var(--gray-200);
+    }
+    
+    .sidebar-section-content {
+        max-height: 200px;
+    }
+} 

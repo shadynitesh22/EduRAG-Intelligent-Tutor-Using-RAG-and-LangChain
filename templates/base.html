@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="EduRAG - Intelligent AI Tutor Using RAG and Advanced Learning Technology">
+    <meta name="keywords" content="EduRAG, AI Tutor, Education, Learning, RAG, Chatbot, Intelligent Tutoring">
+    <meta name="author" content="EduRAG Platform">
+    
+    <title>{% block title %}EduRAG - Intelligent AI Tutor{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎓</text></svg>">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- SweetAlert2 for better alerts -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    {% load static %}
+    <!-- Base Styles -->
+    <link rel="stylesheet" href="{% static 'css/base.css' %}">
+    <link rel="stylesheet" href="{% static 'css/components.css' %}">
+    <link rel="stylesheet" href="{% static 'css/chat.css' %}">
+    <link rel="stylesheet" href="{% static 'css/upload.css' %}">
+    <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Header -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="header-brand">
+                <div class="brand-logo">
+                    <span class="logo-icon">🎓</span>
+                    <div class="brand-text">
+                        <h1 class="brand-title">EduRAG</h1>
+                        <p class="brand-subtitle">Intelligent AI Tutor</p>
+                    </div>
+                </div>
+            </div>
+            <div class="header-nav">
+                <nav class="nav-menu">
+                    <a href="/" class="nav-link active">Home</a>
+                    <a href="/admin/" class="nav-link">Admin</a>
+                    <a href="/api/docs/" class="nav-link">API Docs</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="footer-container">
+            <div class="footer-section">
+                <h4>EduRAG</h4>
+            </div>
+            <div class="footer-section">
+                <h4>Features</h4>
+                <ul>
+                    <li>Smart Content Processing</li>
+                    <li>Personalized Tutoring</li>
+                    <li>Multi-Subject Support</li>
+                    <li>Real-time Learning</li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Technology</h4>
+                <ul>
+                    <li>RAG Pipeline</li>
+                    <li>Google Gemini AI</li>
+                    <li>FAISS Vector Search</li>
+                    <li>Django Backend</li>
+                </ul>
+            </div>
+        
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2024 EduRAG. - Task completed by|Nitesh Paudel - email nitesh12paudel@gmail.com</p>
+        </div>
+    </footer>
+
+    <!-- Base Scripts -->
+    <script src="{% static 'js/base.js' %}"></script>
+    <script src="{% static 'js/upload.js' %}"></script>
+    <script src="{% static 'js/sidebar.js' %}"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
