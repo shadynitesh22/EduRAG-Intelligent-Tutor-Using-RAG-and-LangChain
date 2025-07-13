@@ -302,44 +302,6 @@ For issues and questions:
 
 ## 🎯 What I Built
 
-### Core Features
-
-#### 1. **Intelligent Content Processing**
-- **Multi-format Support**: Upload PDF, DOCX, and TXT files
-- **Automatic Text Extraction**: Extract text from various document formats
-- **Smart Chunking**: Break content into optimal chunks (200 characters) with overlap
-- **Embedding Generation**: Create semantic embeddings using Google Gemini AI
-- **Vector Indexing**: Store embeddings in FAISS for fast similarity search
-
-#### 2. **Advanced RAG Pipeline**
-- **Semantic Search**: Find relevant content chunks based on question similarity
-- **Context Retrieval**: Retrieve multiple relevant chunks for comprehensive answers
-- **AI Response Generation**: Generate contextual responses using retrieved content
-- **Source Attribution**: Provide source information for all responses
-
-#### 3. **Interactive Chat Interface**
-- **Real-time Chat**: Instant question-answer interactions
-- **Multiple Personas**: Choose from different tutoring styles (Helpful, Socratic, Encouraging, Strict)
-- **Textbook Selection**: Filter responses by specific uploaded materials
-- **Rich Text Formatting**: Support for bold, italic, lists, and structured content
-
-#### 4. **Feedback & Rating System**
-- **5-Star Rating**: Rate AI responses for quality improvement
-- **Comment System**: Provide detailed feedback on responses
-- **Feedback Analytics**: Track and analyze user satisfaction
-
-#### 5. **Chat History & Analytics**
-- **Session Tracking**: Monitor questions asked and response times
-- **History Management**: View and filter chat history by date
-- **Export Functionality**: Export chat history for analysis
-- **Real-time Statistics**: Track session metrics and performance
-
-#### 6. **Content Management**
-- **Subject & Grade Management**: Organize content by educational categories
-- **File Upload Interface**: Drag-and-drop file upload with progress tracking
-- **Content Processing Status**: Real-time processing status updates
-- **Content Deletion**: Remove uploaded materials with automatic cleanup
-
 ### Technical Architecture
 
 #### **Database Schema**
@@ -423,31 +385,6 @@ For issues and questions:
 - **Performance Monitoring**: Real-time system performance tracking
 - **User Behavior Analysis**: Understand user interaction patterns
 
-## 🎯 Use Cases
 
-### **Educational Institutions**
-- **Classroom Support**: Supplement classroom learning with AI assistance
-- **Homework Help**: Provide instant help for student questions
-- **Study Aid**: Create personalized study materials and guides
-
-### **Online Learning Platforms**
-- **Course Enhancement**: Add AI-powered tutoring to existing courses
-- **Personalized Learning**: Adapt content to individual student needs
-- **Scalable Tutoring**: Handle large numbers of students simultaneously
-
-
-## 🔧 Technical Highlights
-
-### **Innovation Features**
-- **Automatic FAISS Sync**: Self-maintaining vector index
-- **Real-time Processing**: Live content processing with status updates
-- **Intelligent Chunking**: Optimal text segmentation for better retrieval
-- **Multi-modal Support**: Handle various content types seamlessly
-
-### **Performance Features**
-- **Sub-second Response**: Fast query processing and response generation
-- **Efficient Memory Usage**: Optimized memory management for large datasets
-- **Scalable Architecture**: Designed for horizontal scaling
-- **High Availability**: Fault-tolerant system design
 
 This EduRAG system represents a complete, production-ready AI-powered educational platform that combines cutting-edge AI technology with robust software engineering practices to deliver an exceptional learning experience. 
