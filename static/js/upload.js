@@ -361,7 +361,6 @@ function getFileIcon(filename) {
 
 function viewMaterial(materialId) {
     console.log('Viewing material:', materialId);
-    // TODO: Implement material viewing functionality
 }
 
 async function deleteMaterial(materialId) {
